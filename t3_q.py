@@ -69,6 +69,7 @@ def euclidean_distance(lat1, lon1, lat2, lon2):
 
 speed = 0.2/60 # 0.2 degrees per hour
 
+#weights should be time it takes to traverse edge
 def djikstras(driver_node, passenger_node, current_time, adj):
     day_of_week = current_time.weekday() # between 0 - 6
     hour = current_time.hour # between 0 - 23
@@ -88,7 +89,6 @@ def djikstras(driver_node, passenger_node, current_time, adj):
                 heapq.heappush(minheap, [weight1 + weight2, node2])
 
     return shortest[passenger_node]*60
-
 
 #T3 logic
 current_time = date_object_start
