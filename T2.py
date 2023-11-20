@@ -108,7 +108,9 @@ idleDrivers = []
 initialMinDistance = 9999999
 
 
-
+# Set up counter of 1) passengerTimeSpent - cumulative time from requesting ride to drop off for every passenger and 2) driverProfit - time spent driving passenger to destination MINUS time spent driving TO passenger
+passengerTimeSpent = 0
+driverProfit = 0
 
 
 # INITIALIZATION COMPLETE, WHILE LOOP BEGINS
@@ -151,6 +153,9 @@ while current_time < date_object_end and passengersQueue and driversHeap:
         nextDriver = heappop(driversHeap)
         nextDriverArrivalTime = nextDriver[0]
 
+        # Update current_time
+        current_time = nextDriverArrivalTime
+
         # add all new passengers that would request rides by next Driver Arrival Time
         while passengersQueue:
             possibleIdlePassenger = passengersQueue[0]
@@ -172,6 +177,7 @@ while current_time < date_object_end and passengersQueue and driversHeap:
               closestIndex = i
 
         passengerToBePaired = idlePassengers[closestIndex]
+        passengerTimeSpent += (current_time-passengerToBePaired[0]).total_seconds()/60
         
         # Passenger closestIndex is paired up with the driver, can be removed from idlePassengers
         idlePassengers.pop(closestIndex)
@@ -179,8 +185,14 @@ while current_time < date_object_end and passengersQueue and driversHeap:
               
         #calculate distance between pickup and dropoff, we divide distance by speed
         pick_up_time = euclidean_distance(nextDriver[1], nextDriver[2], passengerToBePaired[1], passengerToBePaired[2])/speed
+        driverProfit -= pick_up_time
+
+
         drop_off_time = euclidean_distance(passengerToBePaired[1], passengerToBePaired[2], passengerToBePaired[3], passengerToBePaired[4])/speed
+        driverProfit += drop_off_time
+
         total_estimated_drive_time = pick_up_time + drop_off_time 
+        passengerTimeSpent += total_estimated_drive_time
 
         #add total_estimated_drive_time to driver next available time
         nextDriver[0] = (nextDriverArrivalTime + timedelta(minutes=total_estimated_drive_time))
@@ -193,8 +205,7 @@ while current_time < date_object_end and passengersQueue and driversHeap:
         if not does_driver_exit(nextDriver):
             heapq.heappush(driversHeap, nextDriver)
         
-        # Update current_time
-        current_time = nextDriverArrivalTime
+
         continue
 
 
@@ -205,6 +216,9 @@ while current_time < date_object_end and passengersQueue and driversHeap:
 
         nextPassenger = passengersQueue.popleft()
         nextPassengerArrivalTime = nextPassenger[0]
+
+        # Update current_time
+        current_time = nextPassengerArrivalTime
 
         # add all new drivers that can service rides by next Passenger Arrival Time
         while driversHeap:
@@ -235,9 +249,14 @@ while current_time < date_object_end and passengersQueue and driversHeap:
 
 
         #calculate distance between pickup and dropoff, we divide distance by speed
-        pick_up_time = euclidean_distance(driverToBePaired[1], driverToBePaired[2], nextPassenger[1], nextPassenger[2])/speed
+        pick_up_time = minDistance/speed
+        driverProfit -= pick_up_time
+
         drop_off_time = euclidean_distance(nextPassenger[1], nextPassenger[2], nextPassenger[3], nextPassenger[4])/speed
+        driverProfit += drop_off_time
+
         total_estimated_drive_time = pick_up_time + drop_off_time 
+        passengerTimeSpent += total_estimated_drive_time
 
         #add total_estimated_drive_time to driver next available time
         driverToBePaired[0] = (nextPassengerArrivalTime + timedelta(minutes=total_estimated_drive_time))
@@ -250,12 +269,13 @@ while current_time < date_object_end and passengersQueue and driversHeap:
         if not does_driver_exit(driverToBePaired):
             heapq.heappush(driversHeap, driverToBePaired)
 
-        # Update current_time
-        current_time = nextPassengerArrivalTime
         continue
 
 
 print("DONE")
+print("D1: passenger time spent: ", passengerTimeSpent)
+print("D2: driver profit: ", driverProfit)
+
 endTime = time.time() - startTime
 
 print("Program took ", str(endTime), " seconds to run")

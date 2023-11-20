@@ -30,7 +30,7 @@ def euclidean_distance(lat1, lon1, lat2, lon2):
 
 def does_driver_exit(available_driver):
 
-    weight = random.uniform(0, 0.20)
+    weight = random.uniform(0, 0.10)
     available_driver[3] = available_driver[3] + weight
     if available_driver[3] >= 1: 
         # Driver quit
@@ -232,6 +232,10 @@ idleDrivers = []
 # Set up initial distance as large number when computing min distance between idle driver/passenger pair
 initialMinTime = 9999999
 
+# Set up counter of 1) passengerTimeSpent - cumulative time from requesting ride to drop off for every passenger and 2) driverProfit - time spent driving passenger to destination MINUS time spent driving TO passenger
+passengerTimeSpent = 0
+driverProfit = 0
+
 # INITIALIZATION COMPLETE, WHILE LOOP BEGINS
 print("START OF WHILE")
 
@@ -271,6 +275,9 @@ while current_time < date_object_end and passengersQueue and driversHeap:
 
         nextDriver = heappop(driversHeap)
         nextDriverArrivalTime = nextDriver[0]
+ 
+        # Update current_time
+        current_time = nextDriverArrivalTime
 
         # add all new passengers that would request rides by next Driver Arrival Time
         while passengersQueue:
@@ -305,6 +312,8 @@ while current_time < date_object_end and passengersQueue and driversHeap:
               passengerNode = currentPassengerNode
 
         passengerToBePaired = idlePassengers[closestIndex]
+        passengerTimeSpent += (current_time-passengerToBePaired[0]).total_seconds()/60
+
         
         # Passenger closestIndex is paired up with the driver, can be removed from idlePassengers
         idlePassengers.pop(closestIndex)
@@ -314,13 +323,19 @@ while current_time < date_object_end and passengersQueue and driversHeap:
 
         # I think the simplest assumption is just to calculate time based on dijkstras, not time spent going from off-graph coordinate to node on graph
         pick_up_time = minTime
+        driverProfit -= pick_up_time
+
 
         # Need to to djikstras on drop off time
 
         destinationNode = closestNode(passengerToBePaired[3], passengerToBePaired[4], locationDict)
         drop_off_time = djikstras(passengerNode, destinationNode, current_time, edgesDict)
+        driverProfit += drop_off_time
+
 
         total_estimated_drive_time = pick_up_time + drop_off_time 
+        passengerTimeSpent += total_estimated_drive_time
+
 
         #add total_estimated_drive_time to driver next available time
         nextDriver[0] = (nextDriverArrivalTime + timedelta(minutes=total_estimated_drive_time))
@@ -332,9 +347,7 @@ while current_time < date_object_end and passengersQueue and driversHeap:
         # Add back into heap
         if not does_driver_exit(nextDriver):
             heapq.heappush(driversHeap, nextDriver)
-        
-        # Update current_time
-        current_time = nextDriverArrivalTime
+
         continue
 
 
@@ -345,6 +358,9 @@ while current_time < date_object_end and passengersQueue and driversHeap:
 
         nextPassenger = passengersQueue.popleft()
         nextPassengerArrivalTime = nextPassenger[0]
+
+        # Update current_time
+        current_time = nextPassengerArrivalTime
 
         # add all new drivers that can service rides by next Passenger Arrival Time
         while driversHeap:
@@ -389,12 +405,17 @@ while current_time < date_object_end and passengersQueue and driversHeap:
 
         # I think the simplest assumption is just to calculate time based on dijkstras, not time spent going from off-graph coordinate to node on graph
         pick_up_time = minTime
+        driverProfit -= minTime
 
         # Need to to djikstras on drop off time
 
         destinationNode = closestNode(nextPassenger[3], nextPassenger[4], locationDict)
         drop_off_time = djikstras(passengerNode, destinationNode, current_time, edgesDict)
+        driverProfit += drop_off_time
+
         total_estimated_drive_time = pick_up_time + drop_off_time 
+        passengerTimeSpent += total_estimated_drive_time
+        
 
         #add total_estimated_drive_time to driver next available time
         driverToBePaired[0] = (nextPassengerArrivalTime + timedelta(minutes=total_estimated_drive_time))
@@ -407,12 +428,13 @@ while current_time < date_object_end and passengersQueue and driversHeap:
         if not does_driver_exit(driverToBePaired):
             heapq.heappush(driversHeap, driverToBePaired)
 
-        # Update current_time
-        current_time = nextPassengerArrivalTime
         continue
 
 
 print("DONE")
+print("D1: passenger time spent: ", passengerTimeSpent)
+print("D2: driver profit: ", driverProfit)
+
 endTime = time.time() - startTime
 
 print("Program took ", str(endTime), " seconds to run")
