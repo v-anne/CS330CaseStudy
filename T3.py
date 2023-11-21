@@ -1,4 +1,3 @@
-import csv
 import math
 from datetime import datetime, timedelta
 from collections import deque
@@ -7,44 +6,10 @@ import heapq
 from heapq import*
 import json
 import time
-
-
-def valueSort(row):
-  # comparator for sorting
-  date_time = row[0].split(" ")
-  date = date_time[0]
-  time = date_time[1]
-  lat = row[1]
-  lon = row[2]
-
-    # map applies the first function (first parameter) to every element in the second parameter (array)
-  month, day, year = map(int, date.split('/'))
-  hour, minute, second = map(int, time.split(":"))
-    # returns tuple
-  return (month, day, year, hour, minute, second)
-
-
-def euclidean_distance(lat1, lon1, lat2, lon2):
-    distance = math.sqrt((lat1-lat2)**2 + (lon1-lon2)**2)
-    return distance
-
-def does_driver_exit(available_driver):
-
-    weight = random.uniform(0, 0.10)
-    available_driver[3] = available_driver[3] + weight
-    if available_driver[3] >= 1: 
-        # Driver quit
-        return True
-    else:
-       return False
-    
+from base import* # importing base functions from base.py
 
 def traversalTimes(array):
    return array[2:]
-
-def euclidean_distance(lat1, lon1, lat2, lon2):
-    distance = math.sqrt((lat1-lat2)**2 + (lon1-lon2)**2)
-    return distance
 
 def closestNode(lon, lat, locationDict):
     minDistance = 999999
@@ -129,7 +94,7 @@ with open('passengers.csv', newline='') as csvfile:
 # sort passengers by date/time
 sortedPassengersArr = sorted(passengersArr)
 
-speed = 0.2/60 # 0.2 degrees per hour
+#speed = 0.2/60 # 0.2 degrees per hour
 
 date_string_start = "04/25/2014 00:00:00"
 date_string_end = "04/27/2014 23:59:59"
@@ -429,12 +394,11 @@ while current_time < date_object_end and passengersQueue and driversHeap:
             heapq.heappush(driversHeap, driverToBePaired)
 
         continue
-
-
+endTime = time.time() - startTime
 print("DONE")
+
 print("D1: passenger time spent: ", passengerTimeSpent)
 print("D2: driver profit: ", driverProfit)
 
-endTime = time.time() - startTime
 
 print("Program took ", str(endTime), " seconds to run")
