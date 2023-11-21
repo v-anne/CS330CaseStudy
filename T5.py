@@ -5,7 +5,6 @@ from collections import deque
 import random
 import heapq
 from heapq import*
-import json
 import time
 
 
@@ -37,54 +36,6 @@ def does_driver_exit(available_driver):
         return True
     else:
        return False
-    
-
-def traversalTimes(array):
-   return array[2:]
-
-def euclidean_distance(lat1, lon1, lat2, lon2):
-    distance = math.sqrt((lat1-lat2)**2 + (lon1-lon2)**2)
-    return distance
-
-def closestNode(lon, lat, locationDict):
-    minDistance = 999999
-    closestNode = None
-    for key in locationDict:
-        distance = euclidean_distance(lon, lat, key[0], key[1])
-        if distance < minDistance:
-            minDistance = distance
-            closestNode = locationDict[key]
-    
-    return closestNode
-
-def djikstras(driver_node, passenger_node, current_time, adj):
-    day_of_week = current_time.weekday() # between 0 - 6
-
-    offset = 0
-    if day_of_week == 5 or day_of_week == 6:
-        offset = 24
-    hour = current_time.hour # between 0 - 23
-    shortest = {}
-    minheap = [[0, driver_node]]
-    heapq.heapify(minheap)
-
-    while minheap:
-        weight1, node1 = heapq.heappop(minheap)
-        if node1 in shortest:
-            continue
-        shortest[node1] = weight1
-
-        if node1 == passenger_node:
-            break
-
-        for edge in adj[node1]:
-            node2 = edge[0]
-            weight2 = edge[1][offset+hour]
-            if node2 not in shortest:
-                heapq.heappush(minheap, [weight1 + weight2, node2])
-    
-    # returns minutes
-    return shortest[passenger_node]*60
 
 #-----------------------------------------------#
 # END OF FUNCTIONS, WHERE PROGRAM ACTUALLY STARTS
@@ -149,92 +100,19 @@ passengersQueue = deque(sortedPassengersArr)
 heapq.heapify(driversArr)
 driversHeap = driversArr
 
-
-# GRAPH STUFF
-
-# Iterating through edges.csv to obtain dictionary
-
-edges = []
-with open('edges.csv', newline='') as csvfile:
-    spamreader = csv.reader(csvfile, delimiter=',', quotechar='|')
-    thing = False
-    for row in spamreader:
-      if thing:
-        arrayLength = len(row)
-        roadLength = float(row[2])
-
-        # you no longer need the roadLength in the new array
-        newRow = [0] * (arrayLength-1)
-
-        for i in range(arrayLength):
-            if i == 0 or i == 1:
-                # these are the startid and endid
-                newRow[i] = int(row[i])
-                continue
-
-            if i>2:
-                # these will be the time taken to travel road on a given hour/day of week
-                # distance/speed
-                newRow[i-1] = roadLength/float(row[i])
-
-        edges.append(newRow)
-      else:
-        thing = True
-
-
-# Creating the dictionary
-
-edgesDict = {}
-
-for i in range(len(edges)):
-    currentElement = edges[i]
-    startNode = currentElement[0]
-    if startNode not in edgesDict:
-        # This start node not in dictionary
-        edgesDict[startNode] = []
-    
-    edgesDict[startNode].append([currentElement[1], traversalTimes(currentElement)])
-
-
-# Creating dictionary of locations -> node id
-
-json_file_path = "node_data.json"
-
-# Open the JSON file and load its content
-with open(json_file_path, 'r') as json_file:
-    data = json.load(json_file)
-
-# Now 'data' contains the parsed JSON content as a Python dictionary
-nodeID = []
-location = []
-
-# Iterate through the dictionary and append values to the list
-for key, value in data.items():
-    nodeID.append(int(key))
-    coordinates = [0,0]
-
-    # longitude/latitude
-    coordinates[0] = value['lon']
-    coordinates[1] = value['lat']
-    location.append(tuple(coordinates))
-
-
-locationDict = {}
-
-for i in range(len(location)):
-   locationDict[location[i]] = nodeID[i]
-
-
-# Create array of drivers and passengers waiting idlly
+# Create array of drivers and minHeap of passengers waiting idlly
 idlePassengers = []
+heapq.heapify(idlePassengers)
 idleDrivers = []
 
 # Set up initial distance as large number when computing min distance between idle driver/passenger pair
-initialMinTime = 9999999
+initialMinDistance = 9999999
+
 
 # Set up counter of 1) passengerTimeSpent - cumulative time from requesting ride to drop off for every passenger and 2) driverProfit - time spent driving passenger to destination MINUS time spent driving TO passenger
 passengerTimeSpent = 0
 driverProfit = 0
+
 
 # INITIALIZATION COMPLETE, WHILE LOOP BEGINS
 print("START OF WHILE")
@@ -273,11 +151,13 @@ while current_time < date_object_end and passengersQueue and driversHeap:
     if len(idlePassengers) > len(idleDrivers):
         # there are no idle drivers, but potentially many idle passengers. Find the next available driver (and all the new passengers that request rides by that time) and assign that driver to the idle passenger closest to him
 
+
         nextDriver = heappop(driversHeap)
         nextDriverArrivalTime = nextDriver[0]
- 
+
         # Update current_time
         current_time = nextDriverArrivalTime
+
 
         # add all new passengers that would request rides by next Driver Arrival Time
         while passengersQueue:
@@ -288,54 +168,44 @@ while current_time < date_object_end and passengersQueue and driversHeap:
             else:
                 break
 
-        # Determine which idle passenger is closest to the new Driver
+        # Create array of passengers that request ride at same time (pop from queue until a different time is found)
+        sameTimePassengers = []
 
-        minTime = initialMinTime
-        closestIndex = 0
+        # What is the request time of the first passenger?
+        sameTimePassengers.append(heappop(idlePassengers))
+        minTime = sameTimePassengers[0][0]
 
-        # Finding closest node to driver
-
-        driverNode = closestNode(nextDriver[1], nextDriver[2], locationDict)
-        passengerNode = 0
-
-        for i in range(len(idlePassengers)):
+        # Pop from idlePassengers all passengers that have same request time
+        while idlePassengers:
+           if idlePassengers[0][0] != minTime:
+              break
+           sameTimePassengers.append(heappop(idlePassengers))
            
-           currentConsideredPassenger = idlePassengers[i]
-           # Finding closest node to passenger
+        # Randomly assign a passenger in sameTimePassengers to available driver
+        indexSelection = random.randint(0, len(sameTimePassengers)-1)
 
-           currentPassengerNode = closestNode(currentConsideredPassenger[1], currentConsideredPassenger[2], locationDict)
 
-           travelTime = djikstras(driverNode, currentPassengerNode, current_time, edgesDict)
-           if travelTime < minTime:
-              minTime = travelTime
-              closestIndex = i
-              passengerNode = currentPassengerNode
-
-        passengerToBePaired = idlePassengers[closestIndex]
+        passengerToBePaired = sameTimePassengers[indexSelection]
         passengerTimeSpent += (current_time-passengerToBePaired[0]).total_seconds()/60
-
         
-        # Passenger closestIndex is paired up with the driver, can be removed from idlePassengers
-        idlePassengers.pop(closestIndex)
+        # Passenger indexSelection is paired up with the driver, can be removed from sameTimePassengers
+        sameTimePassengers.pop(indexSelection)
 
-              
+        # Put the unselected passengers back into the minHeap
+
+        for passenger in sameTimePassengers:
+            heapq.heappush(idlePassengers, passenger)
+
         #calculate distance between pickup and dropoff, we divide distance by speed
-
-        # I think the simplest assumption is just to calculate time based on dijkstras, not time spent going from off-graph coordinate to node on graph
-        pick_up_time = minTime
+        pick_up_time = euclidean_distance(nextDriver[1], nextDriver[2], passengerToBePaired[1], passengerToBePaired[2])/speed
         driverProfit -= pick_up_time
 
 
-        # Need to to djikstras on drop off time
-
-        destinationNode = closestNode(passengerToBePaired[3], passengerToBePaired[4], locationDict)
-        drop_off_time = djikstras(passengerNode, destinationNode, current_time, edgesDict)
+        drop_off_time = euclidean_distance(passengerToBePaired[1], passengerToBePaired[2], passengerToBePaired[3], passengerToBePaired[4])/speed
         driverProfit += drop_off_time
-
 
         total_estimated_drive_time = pick_up_time + drop_off_time 
         passengerTimeSpent += total_estimated_drive_time
-
 
         #add total_estimated_drive_time to driver next available time
         nextDriver[0] = (nextDriverArrivalTime + timedelta(minutes=total_estimated_drive_time))
@@ -347,6 +217,7 @@ while current_time < date_object_end and passengersQueue and driversHeap:
         # Add back into heap
         if not does_driver_exit(nextDriver):
             heapq.heappush(driversHeap, nextDriver)
+        
 
         continue
 
@@ -373,25 +244,14 @@ while current_time < date_object_end and passengersQueue and driversHeap:
 
         # Determine which idle driver is closest to the new passenger
 
-        minTime = initialMinTime
+        minDistance = initialMinDistance
         closestIndex = 0
 
-        # Finding closest node to passenger
-
-        passengerNode = closestNode(nextPassenger[1], nextPassenger[2], locationDict)
-        driverNode = 0
-
         for i in range(len(idleDrivers)):
-           currentConsideredDriver = idleDrivers[i]
-           # Finding closest node to driver
-
-           currentDriverNode = closestNode(currentConsideredDriver[1], currentConsideredDriver[2], locationDict)
-
-           travelTime = djikstras(passengerNode, currentDriverNode, current_time, edgesDict)
-           if travelTime < minTime:
-              minTime = travelTime
+           distance = euclidean_distance(idleDrivers[i][1], idleDrivers[i][2], nextPassenger[1], nextPassenger[2])
+           if distance < minDistance:
+              minDistance = distance
               closestIndex = i
-              driverNode = currentDriverNode
 
 
         driverToBePaired = idleDrivers[closestIndex]
@@ -402,20 +262,14 @@ while current_time < date_object_end and passengersQueue and driversHeap:
 
 
         #calculate distance between pickup and dropoff, we divide distance by speed
+        pick_up_time = minDistance/speed
+        driverProfit -= pick_up_time
 
-        # I think the simplest assumption is just to calculate time based on dijkstras, not time spent going from off-graph coordinate to node on graph
-        pick_up_time = minTime
-        driverProfit -= minTime
-
-        # Need to to djikstras on drop off time
-
-        destinationNode = closestNode(nextPassenger[3], nextPassenger[4], locationDict)
-        drop_off_time = djikstras(passengerNode, destinationNode, current_time, edgesDict)
+        drop_off_time = euclidean_distance(nextPassenger[1], nextPassenger[2], nextPassenger[3], nextPassenger[4])/speed
         driverProfit += drop_off_time
 
         total_estimated_drive_time = pick_up_time + drop_off_time 
         passengerTimeSpent += total_estimated_drive_time
-        
 
         #add total_estimated_drive_time to driver next available time
         driverToBePaired[0] = (nextPassengerArrivalTime + timedelta(minutes=total_estimated_drive_time))

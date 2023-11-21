@@ -127,7 +127,7 @@ while current_time < date_object_end and passengersQueue and driversHeap:
     if len(idlePassengers) == 0 and len(idleDrivers) == 0:
        # there are no idle drivers or passengers, find the first driver OR passenger (whichever comes first) and update the proper idle array
 
-        if passengersQueue[0] <= driversHeap[0]:
+        if passengersQueue[0][0] <= driversHeap[0][0]:
           # next passenger arrives before/same time the next driver, so add the next passenger
 
             passengerToAdd = passengersQueue.popleft()
