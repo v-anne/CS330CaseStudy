@@ -8,20 +8,6 @@ from heapq import*
 import time
 
 
-def valueSort(row):
-  # comparator for sorting
-  date_time = row[0].split(" ")
-  date = date_time[0]
-  time = date_time[1]
-  lat = row[1]
-  lon = row[2]
-
-    # map applies the first function (first parameter) to every element in the second parameter (array)
-  month, day, year = map(int, date.split('/'))
-  hour, minute, second = map(int, time.split(":"))
-    # returns tuple
-  return (month, day, year, hour, minute, second)
-
 
 def euclidean_distance(lat1, lon1, lat2, lon2):
     distance = math.sqrt((lat1-lat2)**2 + (lon1-lon2)**2)
