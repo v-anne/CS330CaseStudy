@@ -40,7 +40,7 @@ def haversine_distance(lat1, lon1, lat2, lon2):
 
 def does_driver_exit(available_driver):
 
-    weight = random.uniform(0, 0.10)
+    weight = random.uniform(0, 0.19)
     available_driver[3] = available_driver[3] + weight
     if available_driver[3] >= 1: 
         # Driver quit
