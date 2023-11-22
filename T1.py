@@ -65,7 +65,7 @@ wait_times = []
 driverProfit = 0
 
 while current_time < date_object_end and passengersQueue and driversHeap:
-    #print("there are ", str(len(driversHeap)), " drivers and ", str(len(passengersQueue)), "remaining passengers")
+    print("there are ", str(len(driversHeap)), " drivers and ", str(len(passengersQueue)), "remaining passengers")
     most_waited_passenger = passengersQueue.popleft()
     available_driver = heapq.heappop(driversHeap)
 
@@ -106,6 +106,7 @@ print("DONE")
 waits = [t[0] for t in wait_times]
 drives = [t[1] for t in wait_times]
 total = [t[0]+t[1] for t in wait_times]
+profitpertrip = [t[1]-t[0] for t in wait_times]
 
 print("D1: total passenger time spent: ", cumulative_wait_time, " minutes")
 print("D1: average time per passenger (wait): ", statistics.mean(waits), " minutes")
@@ -114,11 +115,26 @@ print("D1: average time per passenger (transit): ", statistics.mean(drives), " m
 print("D1: median time per passenger (transit): ", statistics.median(drives), " minutes")
 print("D1: average time per passenger (wait + transit): ", statistics.mean(total), " minutes")
 print("D1: median time per passenger (wait + transit): ", statistics.median(total), " minutes")
-print("D2: driver profit: ", driverProfit, " minutes")
-print("D2: average driver profit: ", driverProfit / len(driversArr), " minutes")
+print("D2: total driver profit: ", driverProfit, " minutes")
+print("D2: average driver profit per trip: ", statistics.mean(profitpertrip), " minutes")
+print("D2: median driver profit per trip: ", statistics.median(profitpertrip), " minutes")
 
-print("Program took ", str(endTime), " seconds to run")
+print("D3: Program took ", str(endTime), " seconds to run")
 
+import matplotlib.pyplot as plt
+plt.hist(total, bins=100)
+plt.xlim(0, 80)
+plt.title("Histogram of Total Times")
+plt.xlabel("Total Time (minutes)")
+plt.ylabel("Frequency")
+plt.show()
+
+plt.hist(profitpertrip, bins=100)
+plt.xlim(0, 80)
+plt.title("Histogram of Profit per Trip")
+plt.xlabel("Profit (minutes)")
+plt.ylabel("Frequency")
+plt.show()
 '''import matplotlib.pyplot as plt
 plt.hist(wait_times, bins=100)
 plt.title("Histogram of Wait Times")

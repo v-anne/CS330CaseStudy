@@ -1,9 +1,12 @@
+import csv
+import math
 from datetime import datetime, timedelta
 from collections import deque
+import random
 import heapq
 from heapq import*
 import time
-from base import* # importing base functions from base.py
+from base import*
 
 #-----------------------------------------------#
 # END OF FUNCTIONS, WHERE PROGRAM ACTUALLY STARTS
@@ -47,8 +50,6 @@ with open('passengers.csv', newline='') as csvfile:
 # sort passengers by date/time
 sortedPassengersArr = sorted(passengersArr)
 
-speed = 15/60 # 15 miles per hour, converted to miles per minute
-
 date_string_start = "04/25/2014 00:00:00"
 date_string_end = "04/27/2014 23:59:59"
 
@@ -67,17 +68,18 @@ passengersQueue = deque(sortedPassengersArr)
 heapq.heapify(driversArr)
 driversHeap = driversArr
 
-# Create array of drivers and passengers waiting idlly
+# Create array of drivers and minHeap of passengers waiting idlly
 idlePassengers = []
+heapq.heapify(idlePassengers)
 idleDrivers = []
 
 # Set up initial distance as large number when computing min distance between idle driver/passenger pair
 initialMinDistance = 9999999
 
+
 # Set up counter of 1) passengerTimeSpent - cumulative time from requesting ride to drop off for every passenger and 2) driverProfit - time spent driving passenger to destination MINUS time spent driving TO passenger
 passengerTimeSpent = 0
 driverProfit = 0
-numPassengers = len(passengersQueue)
 wait_times = []
 
 # INITIALIZATION COMPLETE, WHILE LOOP BEGINS
@@ -117,11 +119,13 @@ while current_time < date_object_end and passengersQueue and driversHeap:
     if len(idlePassengers) > len(idleDrivers):
         # there are no idle drivers, but potentially many idle passengers. Find the next available driver (and all the new passengers that request rides by that time) and assign that driver to the idle passenger closest to him
 
+
         nextDriver = heappop(driversHeap)
         nextDriverArrivalTime = nextDriver[0]
 
         # Update current_time
         current_time = nextDriverArrivalTime
+
 
         # add all new passengers that would request rides by next Driver Arrival Time
         while passengersQueue:
@@ -132,25 +136,35 @@ while current_time < date_object_end and passengersQueue and driversHeap:
             else:
                 break
 
-        # Determine which idle passenger is closest to the new Driver
+        # Create array of passengers that request ride at same time (pop from queue until a different time is found)
+        sameTimePassengers = []
 
-        minDistance = initialMinDistance
-        closestIndex = 0
+        # What is the request time of the first passenger?
+        sameTimePassengers.append(heappop(idlePassengers))
+        minTime = sameTimePassengers[0][0]
 
-        for i in range(len(idlePassengers)):
-           distance = haversine_distance(idlePassengers[i][1], idlePassengers[i][2], nextDriver[1], nextDriver[2])
-           if distance < minDistance:
-              minDistance = distance
-              closestIndex = i
+        # Pop from idlePassengers all passengers that have same request time
+        while idlePassengers:
+           if idlePassengers[0][0] != minTime:
+              break
+           sameTimePassengers.append(heappop(idlePassengers))
+           
+        # Randomly assign a passenger in sameTimePassengers to available driver
+        indexSelection = random.randint(0, len(sameTimePassengers)-1)
 
-        passengerToBePaired = idlePassengers[closestIndex]
+
+        passengerToBePaired = sameTimePassengers[indexSelection]
         passengerWaitTime = (current_time-passengerToBePaired[0]).total_seconds()/60
         passengerTimeSpent += passengerWaitTime
         
-        # Passenger closestIndex is paired up with the driver, can be removed from idlePassengers
-        idlePassengers.pop(closestIndex)
+        # Passenger indexSelection is paired up with the driver, can be removed from sameTimePassengers
+        sameTimePassengers.pop(indexSelection)
 
-              
+        # Put the unselected passengers back into the minHeap
+
+        for passenger in sameTimePassengers:
+            heapq.heappush(idlePassengers, passenger)
+
         #calculate distance between pickup and dropoff, we divide distance by speed
         pick_up_time = haversine_distance(nextDriver[1], nextDriver[2], passengerToBePaired[1], passengerToBePaired[2])/speed
         driverProfit -= pick_up_time
@@ -174,7 +188,10 @@ while current_time < date_object_end and passengersQueue and driversHeap:
         if not does_driver_exit(nextDriver):
             heapq.heappush(driversHeap, nextDriver)
         
+
         continue
+
+
 
     # CASE 3
     if len(idleDrivers) > len(idlePassengers):
@@ -212,6 +229,8 @@ while current_time < date_object_end and passengersQueue and driversHeap:
         # Driver closestIndex is paired up with the passenger, can be removed from idleDrivers
         idleDrivers.pop(closestIndex)
 
+
+
         #calculate distance between pickup and dropoff, we divide distance by speed
         pick_up_time = minDistance/speed
         driverProfit -= pick_up_time
@@ -235,6 +254,7 @@ while current_time < date_object_end and passengersQueue and driversHeap:
             heapq.heappush(driversHeap, driverToBePaired)
 
         continue
+
 endTime = time.time() - startTime
 print("DONE")
 
@@ -256,7 +276,6 @@ print("D2: median driver profit per trip: ", statistics.median(profitpertrip), "
 
 print("D3: Program took ", str(endTime), " seconds to run")
 
-
 import matplotlib.pyplot as plt
 '''plt.hist(waits, bins=100)
 plt.xlim(0, 10)
@@ -276,12 +295,5 @@ plt.hist(total, bins=100)
 plt.xlim(0, 80)
 plt.title("Histogram of Total Times")
 plt.xlabel("Total Time (minutes)")
-plt.ylabel("Frequency")
-plt.show()
-
-plt.hist(profitpertrip, bins=100)
-plt.xlim(0, 80)
-plt.title("Histogram of Profit per Trip")
-plt.xlabel("Profit (minutes)")
 plt.ylabel("Frequency")
 plt.show()
